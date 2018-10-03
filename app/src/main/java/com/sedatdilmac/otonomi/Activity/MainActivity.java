@@ -10,6 +10,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.webkit.WebView;
 
+import com.onesignal.OneSignal;
 import com.sedatdilmac.otonomi.R;
 
 import java.io.UnsupportedEncodingException;
@@ -43,12 +44,12 @@ public class MainActivity extends AppCompatActivity {
         webView.getSettings().setJavaScriptEnabled(true);
 
         try {
-            String url = BASE_URL + "sessiontest.php";
-            String postData = "name=" + URLEncoder.encode("sedat", "UTF-8");
+            String url = BASE_URL;
+            String postData = "onesignalid=" + URLEncoder.encode(OneSignal.getPermissionSubscriptionState().getSubscriptionStatus().getUserId(), "UTF-8");
             webView.postUrl(url, postData.getBytes());
         } catch (UnsupportedEncodingException e) {
             e.printStackTrace();
-            String url = BASE_URL + "get.php?name=catchName";
+            String url = BASE_URL;
             webView.loadUrl(url);
         }
 
