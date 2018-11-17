@@ -7,7 +7,7 @@ package com.sedatdilmac.otonomi.Util;
 
 public class StaticFields {
 
-    public static final String BASE_URL = "http://ankaotonomi.com/mobile/";
+    public static final String BASE_URL = "http://ankaotonomi.com/";
     public static final String HASH = "";
 
 }

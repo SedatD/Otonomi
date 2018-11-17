@@ -27,10 +27,9 @@ public class MyApplication extends Application {
     public void onCreate() {
         super.onCreate();
 
-        OneSignal.startInit(this)
+        /*OneSignal.startInit(this)
                 .inFocusDisplaying(OneSignal.OSInFocusDisplayOption.Notification)
-                .unsubscribeWhenNotificationsAreDisabled(true)
-                .init();
+                .init();*/
 
         _instance = this;
         _preferences = PreferenceManager.getDefaultSharedPreferences(this);
