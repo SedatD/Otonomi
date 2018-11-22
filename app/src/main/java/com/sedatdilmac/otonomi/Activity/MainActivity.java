@@ -1,5 +1,7 @@
 package com.sedatdilmac.otonomi.Activity;
 
+import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.support.v7.app.AppCompatActivity;
@@ -14,86 +16,118 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.ImageView;
+import android.widget.ProgressBar;
 import android.widget.Toast;
 
-import com.google.firebase.FirebaseApp;
-import com.google.firebase.FirebaseOptions;
+import com.android.volley.Request;
+import com.android.volley.RequestQueue;
+import com.android.volley.Response;
+import com.android.volley.VolleyError;
+import com.android.volley.toolbox.StringRequest;
+import com.android.volley.toolbox.Volley;
+import com.onesignal.OSSubscriptionObserver;
+import com.onesignal.OSSubscriptionStateChanges;
 import com.onesignal.OneSignal;
 import com.sedatdilmac.otonomi.R;
+import com.sedatdilmac.otonomi.Util.StaticFields;
 
 import java.net.URLEncoder;
 
 import static com.sedatdilmac.otonomi.Util.StaticFields.BASE_URL;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements OSSubscriptionObserver {
 
-    private static final String TAG = "MainActivity ";
+    private static final String TAG = "MainActivity";
     private boolean doubleBackToExitPressedOnce = false;
+    private WebView webView;
+    private String osi = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        FirebaseOptions.Builder builder = new FirebaseOptions.Builder()
+        aqRequest();
+
+        /*FirebaseOptions.Builder builder = new FirebaseOptions.Builder()
                 .setApplicationId("ankaotonomi-41f33")
                 .setApiKey("AIzaSyDxG9jgxrfo7ADgbPsRmPBb_TttOtM60W0");
-        FirebaseApp.initializeApp(this, builder.build());
+        FirebaseApp.initializeApp(this, builder.build());*/
 
         OneSignal.startInit(this)
-                //.inFocusDisplaying(OneSignal.OSInFocusDisplayOption.Notification)
+                .inFocusDisplaying(OneSignal.OSInFocusDisplayOption.Notification)
                 .init();
+
+        OneSignal.addSubscriptionObserver(this);
 
         final ImageView imagwView = findViewById(R.id.imageView);
 
-        setAnimation(imagwView, 1000);
+        setAnimation(imagwView, 1300);
 
-        final WebView webView = findViewById(R.id.webView);
+        final ProgressBar progressBar = findViewById(R.id.progressBar);
+
+        webView = findViewById(R.id.webView);
         webView.getSettings().setJavaScriptEnabled(true);
         webView.getSettings().setAppCacheEnabled(false);
         webView.getSettings().setCacheMode(WebSettings.LOAD_NO_CACHE);
         webView.clearCache(true);
 
         webView.setWebViewClient(new WebViewClient() {
+
             @Override
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
                 webView.setVisibility(View.VISIBLE);
                 imagwView.setVisibility(View.GONE);
+                progressBar.setVisibility(View.GONE);
             }
+
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView view, String url) {
+                super.shouldOverrideUrlLoading(view, url);
+                if (url.startsWith("tel:")) {
+                    Intent intent = new Intent(Intent.ACTION_DIAL, Uri.parse(url));
+                    startActivity(intent);
+                    view.reload();
+                    return true;
+                }
+                view.loadUrl(url);
+                return true;
+            }
+
         });
 
-        /*Thread mSplashThread;
-        mSplashThread = new Thread() {
-            @Override
-            public void run() {
-                try {
-                    synchronized (this) {
-                        wait(1750);
-                    }
-                } catch (InterruptedException ex) {
-                    Log.wtf(TAG, "thread catche dustu");
-                } finally {
-                    webView.setVisibility(View.VISIBLE);
-                    imagwView.setVisibility(View.GONE);
-                }
-            }
-        };
-        mSplashThread.start();*/
+        osi = OneSignal.getPermissionSubscriptionState().getSubscriptionStatus().getUserId();
 
-        String osi = OneSignal.getPermissionSubscriptionState().getSubscriptionStatus().getUserId();
-
-        Log.wtf(TAG, "osi : " + osi);
-
-        try {
-            String postData = "onesignalid=" + URLEncoder.encode(osi, "UTF-8");
-            webView.postUrl(BASE_URL + "mobile/", postData.getBytes());
-        } catch (Exception e) {
-            e.printStackTrace();
-            Log.wtf(TAG, "alt catch : " + e.getMessage() + " / osi : " + osi);
-            webView.loadUrl(BASE_URL);
+        if (osi != null) {
+            launchWebView();
         }
 
+    }
+
+    private void aqRequest() {
+        RequestQueue queue = Volley.newRequestQueue(getApplicationContext().getApplicationContext());
+        String mUrl = StaticFields.BASE_URL + "onoff.php";
+        StringRequest stringRequest = new StringRequest(Request.Method.GET, mUrl,
+                new Response.Listener<String>() {
+                    @Override
+                    public void onResponse(String response) {
+                        Log.wtf(TAG, "onResponse : " + response);
+                        if (Integer.parseInt(response.trim()) != 1) {
+                            finish();
+                            startActivity(new Intent(MainActivity.this, ErrorActivity.class));
+                        }
+                    }
+                },
+                new Response.ErrorListener() {
+                    @Override
+                    public void onErrorResponse(VolleyError error) {
+                        Log.wtf(TAG, "onErrorResponse : " + error);
+                        finish();
+                        startActivity(new Intent(MainActivity.this, ErrorActivity.class));
+                    }
+                });
+        queue.add(stringRequest);
     }
 
     private void setAnimation(View viewToAnimate, int time) {
@@ -137,22 +171,38 @@ public class MainActivity extends AppCompatActivity {
                 Log.wtf(TAG, "onReceiveValue : " + aBoolean);
             }
         });
+
     }
 
-    /*@Override
+    @Override
     public void onOSSubscriptionChanged(OSSubscriptionStateChanges stateChanges) {
 
-        if (!stateChanges.getFrom().getSubscribed() &&
-                stateChanges.getTo().getSubscribed()) {
-            new AlertDialog.Builder(this)
-                    .setMessage("You've successfully subscribed to push notifications!")
-                    .show();
-            // get player ID
-            stateChanges.getTo().getUserId();
+        Log.wtf(TAG, "onOSSubscriptionChanged : " + stateChanges);
+
+        if (!stateChanges.getFrom().getSubscribed() && stateChanges.getTo().getSubscribed()) {
+            //new AlertDialog.Builder(this).setMessage("You've successfully subscribed to push notifications!").show();
+
+            //String osi = stateChanges.getTo().getUserId();
+            osi = OneSignal.getPermissionSubscriptionState().getSubscriptionStatus().getUserId();
+
+            launchWebView();
         }
 
-        Log.i("Debug", "onOSPermissionChanged: " + stateChanges);
-    }*/
+    }
+
+    private void launchWebView() {
+        Log.wtf(TAG, "osi : " + osi);
+
+        try {
+            String postData = "onesignalid=" + URLEncoder.encode(osi, "UTF-8");
+            webView.postUrl(BASE_URL + "mobile/", postData.getBytes());
+        } catch (Exception e) {
+            e.printStackTrace();
+            Log.wtf(TAG, "catch : " + e.getMessage());
+            webView.loadUrl(BASE_URL);
+        }
+
+    }
 
 }
 
